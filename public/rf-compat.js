@@ -611,8 +611,27 @@
     const nextDisplay = data.nextScheduled
       ? (data.sequences || []).find(s => s.name === data.nextScheduled)?.display_name || data.nextScheduled
       : '—';
+    // Sequence name → display name lookup, used below for jukebox-container elements.
+    const seqByName = Object.fromEntries((data.sequences || []).map(s => [s.name, s]));
     document.querySelectorAll('[data-showpilot-next], [data-openfalcon-next]').forEach(nextEl => {
-      if (nextEl.textContent !== nextDisplay) nextEl.textContent = nextDisplay;
+      // Elements inside a jukebox container show the first pending queue entry
+      // directly from data.queue rather than data.nextScheduled. This prevents
+      // the main-playlist fallback value (which getNextUp() returns when the
+      // jukebox queue is empty) from appearing inside the jukebox section.
+      let display = nextDisplay;
+      if (data.viewerControlMode === 'JUKEBOX') {
+        let cur = nextEl.parentElement;
+        while (cur && cur !== document.body) {
+          const c = cur.getAttribute && (cur.getAttribute('data-showpilot-container') || cur.getAttribute('data-openfalcon-container'));
+          if (c === 'jukebox') {
+            const firstQ = (data.queue || [])[0];
+            display = firstQ ? (seqByName[firstQ.sequence_name]?.display_name || firstQ.sequence_name) : '—';
+            break;
+          }
+          cur = cur.parentElement;
+        }
+      }
+      if (nextEl.textContent !== display) nextEl.textContent = display;
     });
 
     // --- Queue size & queue list ---
