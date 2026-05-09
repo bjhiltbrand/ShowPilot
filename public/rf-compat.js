@@ -574,13 +574,12 @@
     }
 
     // --- NOW_PLAYING text ---
-    const nowEl = document.querySelector('.now-playing-text');
-    if (nowEl) {
-      const nowDisplay = data.nowPlaying
-        ? (data.sequences || []).find(s => s.name === data.nowPlaying)?.display_name || data.nowPlaying
-        : '—';
+    const nowDisplay = data.nowPlaying
+      ? (data.sequences || []).find(s => s.name === data.nowPlaying)?.display_name || data.nowPlaying
+      : '—';
+    document.querySelectorAll('.now-playing-text').forEach(nowEl => {
       if (nowEl.textContent !== nowDisplay) nowEl.textContent = nowDisplay;
-    }
+    });
 
     // --- NOW_PLAYING_IMAGE (v0.32.13+) ---
     // Updates any <img data-showpilot-now-img> elements when the playing
@@ -609,17 +608,18 @@
     // In templates we render server-side, we add data-showpilot-next to the NEXT_PLAYLIST spot.
     // The data-openfalcon-* selectors are kept for backward compat with templates
     // written against the old name.
-    const nextEl = document.querySelector('[data-showpilot-next], [data-openfalcon-next]');
-    if (nextEl) {
-      const nextDisplay = data.nextScheduled
-        ? (data.sequences || []).find(s => s.name === data.nextScheduled)?.display_name || data.nextScheduled
-        : '—';
+    const nextDisplay = data.nextScheduled
+      ? (data.sequences || []).find(s => s.name === data.nextScheduled)?.display_name || data.nextScheduled
+      : '—';
+    document.querySelectorAll('[data-showpilot-next], [data-openfalcon-next]').forEach(nextEl => {
       if (nextEl.textContent !== nextDisplay) nextEl.textContent = nextDisplay;
-    }
+    });
 
     // --- Queue size & queue list ---
-    const queueSizeEl = document.querySelector('[data-showpilot-queue-size], [data-openfalcon-queue-size]');
-    if (queueSizeEl) queueSizeEl.textContent = String((data.queue || []).length);
+    const queueSizeStr = String((data.queue || []).length);
+    document.querySelectorAll('[data-showpilot-queue-size], [data-openfalcon-queue-size]').forEach(el => {
+      el.textContent = queueSizeStr;
+    });
 
     const queueListEl = document.querySelector('[data-showpilot-queue-list], [data-openfalcon-queue-list]');
     if (queueListEl) {
