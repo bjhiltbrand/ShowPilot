@@ -183,6 +183,8 @@ Will uses ShipPilot (his own tool, separate LXC) to push releases to GitHub. Eac
 }
 ```
 
+**Important:** `.release.json` is in `.gitignore` and is NOT committed to the repo. A fresh `git clone` won't have one. Claude must create it with `create_file` each session before packaging the tarball.
+
 ### Testing on LXC only (no GitHub)
 
 When testing locally without pushing to GitHub, use a test tarball:
@@ -366,6 +368,9 @@ If `fppPos` and `audioPos` differ significantly but `drift` shows ~0ms, that's e
 | 0.33.147 | Expire stale un-handed jukebox queue entries. `popNextQueuedRequest` now skips entries older than 2 hours. `cleanupStaleRequests(120)` runs every 60s alongside existing handoff cleanup. Fixes requests from earlier sessions (or made during a plugin restart) silently jumping the queue. |
 | 0.33.148 | Descriptive helper text on jukebox and voting setting checkboxes. Muted explanation lines added under each checkbox. "Hide sequence from list after played" renamed to "Hide song from the request list after it plays." "Block votes for the song that's already winning" renamed to "Block votes for the song that's already leading." Also: PRIMER.md added to repo. |
 | 0.33.149 | Emit `nextScheduled` socket event immediately after a successful jukebox request so "Up Next" updates instantly for all connected viewers instead of waiting for the next poll cycle. (`routes/viewer.js` jukebox/add handler.) |
+| 0.33.151 | Viewer QR code generator on the Dashboard. `GET /api/admin/qr-code` returns a server-generated PNG (via `qrcode` npm package) of the viewer URL. Card shows URL text, Copy URL button, and Download PNG button. Hidden with a prompt card when `public_base_url` isn't configured. New dependency: `qrcode ^1.5.4` — run `npm install` after pulling. |
+| 0.33.154 | Fix audio relay reconnect loop. `audio-position-relay.js` was calling `ws.close()` on a CONNECTING socket, triggering an immediate close event that rescheduled `connect()` every 500ms forever. Fix: skip `ws.close()` when `readyState === 0`, clear `reconnectTimer` at connect entry, guard close/error handlers against scheduling a second reconnect when one is already pending. |
+| 0.33.152 | FPP playlist cooldown suppression. When a sequence with `cooldown_minutes > 0` plays, `/api/plugin/state` now includes a `playlistPatches` array telling the plugin to set `"enabled": 0` on that entry in FPP's playlist JSON. FPP skips disabled entries in normal rotation. The plugin (v0.13.40) applies patches on each state fetch and persists re-enable timestamps to `/home/fpp/media/config/showpilot-cooldowns.json` so they survive plugin restarts. Re-enables fire promptly on each loop iteration and on startup. |
 
 **Plugin version history (this session):**
 | Version | Change |
@@ -373,10 +378,12 @@ If `fppPos` and `audioPos` differ significantly but `drift` shows ~0ms, that's e
 | 0.13.37 | Reduce syncPoint suppression: MediaSyncStart 2000→1000ms, MediaSyncPacket song-change 1500→800ms, setTimeout 3100→1500ms. First syncPoint now arrives at ~3s instead of ~4s. |
 | 0.13.38 | Further reduce: broadcast interval gate 2000→1000ms, setTimeout 1500→1000ms. First syncPoint at ~2s. |
 | 0.13.39 | PID file (`/tmp/showpilot-audio.pid`) written on startup, cleaned on exit. `postStart.sh` kills via PID file first. `scripts/restart-daemon.sh` helper for post-update restarts without full fppd cycle. |
+| 0.13.40 | FPP playlist cooldown suppression. Handles `playlistPatches` from `/state`: patches playlist JSON on disk to disable cooled-down sequences, persists re-enable timestamps to `showpilot-cooldowns.json`. |
+| 0.13.41 | Fix fatal PHP crash in `applyPlaylistPatches`: patches from `ofHttp` are stdClass objects, not arrays — `$patch['key']` throws `Error` in PHP 8. Fixed to use `$patch->key` object syntax throughout. |
 
 **Current versions (as of May 2026):**
-- ShowPilot: v0.33.148
-- FPP Plugin / Audio Daemon: v0.13.39
+- ShowPilot: v0.33.154
+- FPP Plugin / Audio Daemon: v0.13.41
 - rf-compat.js cache buster: v=70
 
 ---
@@ -400,6 +407,19 @@ If `fppPos` and `audioPos` differ significantly but `drift` shows ~0ms, that's e
 **Automatic speaker calibration (v0.33.135):** Do not add a manual `audioSyncOffsetMs` setting UI or suggest users tune it manually. The 5-sample fast calibration handles the speaker offset automatically every song. The `audioSyncOffsetMs` config value still exists for edge cases but should not need to be touched in normal operation.
 
 **`window._pendingSyncPointResolver` → map (v0.33.130):** The original single global was fine for one song at a time, but rapid song changes caused the new song's setup to overwrite the previous song's resolver, leaving it permanently unresolved (8s timeout, then no snap). The per-filename map fixes this. Do not collapse back to a single global.
+
+---
+
+## Open items / tech debt
+
+These are known but deferred. Don't fix unprompted unless they're blocking the current task.
+
+- **Cooldown suppression in voting mode** — `cooldown_minutes` currently hides sequences from the jukebox request UI during cooldown, but cooled-down sequences still appear on the voting ballot. The FPP playlist patch (v0.33.152) suppresses them in rotation regardless of mode, but the viewer-side voting UI needs the same treatment. Deferred — needs thought on UX (hide entirely vs show grayed-out with timer).
+- **`selectTemplate` draft-state bug** — `selectTemplate` in the admin UI unconditionally sets `hasDraft = false` when loading a template that has an uncommitted `draft_html`. Fix: set `hasDraft = !!tpl.draft_html` on load.
+- **Drive-In flex layout regression (v0.32.13)** — the inner wrapper `<div>` added for RFPB compatibility breaks direct-child flex assumptions in built-in canonical templates like Drive-In.
+- **Audio cache backup** — not included in backups. Decision: out of scope, audio resync is one click in the FPP plugin.
+- **LXC hostname** — still `OpenFalcon`, not renamed.
+- **GitHub Actions Node 20 deprecation** — will hit June 2 2026.
 
 ---
 
