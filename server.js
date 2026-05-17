@@ -441,7 +441,7 @@ app.get('/', (req, res) => {
     const queue = db.prepare(`
       SELECT sequence_name, requested_at FROM jukebox_queue
       WHERE played = 0 ORDER BY requested_at ASC
-    `).all();
+    `).all().filter(q => q.sequence_name !== (nowPlaying.sequence_name || null));
 
     // Detect admin login so the viewer can render a small "Admin" pill
     // that takes logged-in admins back to the admin dashboard. Failing
